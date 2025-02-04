@@ -1,0 +1,131 @@
+.dashboard-container {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+}
+
+.chat-message {
+  padding: 8px 12px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  background-color: #f0f2f5;
+  max-width: 85%;
+}
+
+.chat-message.own {
+  background-color: #e3f2fd;
+  margin-left: auto;
+}
+
+.chat-container {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.news-card {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.news-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.analyst-card {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  background-color: #ffffff;
+}
+
+.analyst-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-active {
+  background-color: #4caf50;
+}
+
+.status-absent {
+  background-color: #f44336;
+}
+
+.header-section {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 16px 24px;
+}
+
+.search-field {
+  background-color: #f5f7fa;
+  border-radius: 8px;
+}
+
+.search-field .MuiOutlinedInput-root {
+  border-radius: 8px;
+}
+
+.chat-input {
+  border-top: 1px solid #e0e0e0;
+  padding: 12px;
+  background-color: #ffffff;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a237e;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 960px) {
+  .chat-container {
+    display: none;
+  }
+  
+  .main-content {
+    margin-left: 0;
+  }
+}
+
+.stat-card {
+  transition: transform 0.2s ease-in-out;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+}
+
+.expense-bar {
+  height: 8px;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.activity-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.chart-container {
+  height: 300px;
+  position: relative;
+}
+
+@media (max-width: 600px) {
+  .chart-container {
+    height: 200px;
+  }
+} 
