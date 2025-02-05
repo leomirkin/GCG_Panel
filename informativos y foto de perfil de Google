@@ -1,0 +1,5 @@
+[33mcommit 45207a727c68d5a679fd1d7ded79d79caa8ff541[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: leomirkin <leonardomirkin@gmail.com>
+Date:   Wed Feb 5 11:19:18 2025 -0300
+
+    fix: Corregir errores de ESLint en Dashboard.js
