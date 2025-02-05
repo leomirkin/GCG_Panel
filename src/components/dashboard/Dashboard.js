@@ -444,12 +444,6 @@ ChatMessage.propTypes = {
   showSender: PropTypes.bool.isRequired,
 };
 
-// Agregar constante para horarios
-const WORK_HOURS = Array.from({ length: 15 }, (_, i) => {
-  const hour = i + 8; // Empezando desde las 8:00
-  return `${hour.toString().padStart(2, '0')}:00`;
-});
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user] = useAuthState(auth);
@@ -552,7 +546,7 @@ const Dashboard = () => {
       clearTimeout(cleanupTimeout);
       clearInterval(dailyCleanup);
     };
-  }, []);
+  }, [cleanOldMessages]);
 
   useEffect(() => {
     const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
