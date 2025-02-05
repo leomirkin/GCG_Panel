@@ -276,6 +276,14 @@ const ChatMessage = ({ message, isOwn, onDelete, onClientClick, onTypeClick, sho
   const hasOnlyTags = !processedMessage && (message.client || message.type);
   const [showDelete, setShowDelete] = useState(false);
 
+  const handleClientClick = () => {
+    onClientClick(prev => ({ ...prev, client: message.client }));
+  };
+
+  const handleTypeClick = () => {
+    onTypeClick(prev => ({ ...prev, type: message.type }));
+  };
+
   return (
     <Box sx={{ 
       mb: showSender ? 1 : 0.3,
@@ -312,90 +320,92 @@ const ChatMessage = ({ message, isOwn, onDelete, onClientClick, onTypeClick, sho
           position: 'relative'
         }}
       >
-        <Box sx={{ 
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 1,
-          position: 'relative',
-        }}>
-          <Box sx={{ 
-            flex: 1,
-            minWidth: 0,
-          }}>
-            {processedMessage && (
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: isOwn ? 'white' : '#1a1a1a',
-                  wordBreak: 'break-word',
-                  fontSize: '0.85rem',
-                  lineHeight: 1.4,
-                  display: 'inline',
-                  mr: 1
-                }}
-              >
-                {processedMessage}
-              </Typography>
-            )}
-          </Box>
-
+        {!hasOnlyTags && (
           <Box sx={{ 
             display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            flexShrink: 0,
+            alignItems: 'flex-start',
+            gap: 1,
             position: 'relative',
-            top: 2
           }}>
-            <Typography 
-              className="message-time"
-              variant="caption" 
-              sx={{ 
-                fontSize: '0.7rem',
-                color: isOwn ? 'rgba(255,255,255,0.8)' : 'text.secondary',
-                transition: 'transform 0.2s ease-in-out',
-                transform: showDelete ? 'translateX(-24px)' : 'translateX(0)',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              {message.time}
-            </Typography>
+            <Box sx={{ 
+              flex: 1,
+              minWidth: 0,
+            }}>
+              {processedMessage && (
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: isOwn ? 'white' : '#1a1a1a',
+                    wordBreak: 'break-word',
+                    fontSize: '0.85rem',
+                    lineHeight: 1.4,
+                    display: 'inline',
+                    mr: 1
+                  }}
+                >
+                  {processedMessage}
+                </Typography>
+              )}
+            </Box>
 
-            {isOwn && (
-              <IconButton
-                className="delete-button"
-                size="small"
-                onClick={() => onDelete(message.id)}
+            <Box sx={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              flexShrink: 0,
+              position: 'relative',
+              top: 2
+            }}>
+              <Typography 
+                className="message-time"
+                variant="caption" 
                 sx={{ 
-                  p: 0.2,
+                  fontSize: '0.7rem',
                   color: isOwn ? 'rgba(255,255,255,0.8)' : 'text.secondary',
-                  opacity: showDelete ? 1 : 0,
-                  visibility: showDelete ? 'visible' : 'hidden',
-                  position: 'absolute',
-                  right: -8,
-                  transition: 'opacity 0.2s ease-in-out, visibility 0.2s ease-in-out',
-                  '&:hover': {
-                    color: isOwn ? 'white' : 'text.primary'
-                  }
+                  transition: 'transform 0.2s ease-in-out',
+                  transform: showDelete ? 'translateX(-24px)' : 'translateX(0)',
+                  whiteSpace: 'nowrap'
                 }}
               >
-                <DeleteOutline fontSize="small" />
-              </IconButton>
-            )}
+                {message.time}
+              </Typography>
+
+              {isOwn && (
+                <IconButton
+                  className="delete-button"
+                  size="small"
+                  onClick={() => onDelete(message.id)}
+                  sx={{ 
+                    p: 0.2,
+                    color: isOwn ? 'rgba(255,255,255,0.8)' : 'text.secondary',
+                    opacity: showDelete ? 1 : 0,
+                    visibility: showDelete ? 'visible' : 'hidden',
+                    position: 'absolute',
+                    right: -8,
+                    transition: 'opacity 0.2s ease-in-out, visibility 0.2s ease-in-out',
+                    '&:hover': {
+                      color: isOwn ? 'white' : 'text.primary'
+                    }
+                  }}
+                >
+                  <DeleteOutline fontSize="small" />
+                </IconButton>
+              )}
+            </Box>
           </Box>
-        </Box>
+        )}
 
         {(message.client || message.type) && (
           <Stack 
             direction="row" 
             spacing={0.5}
-            sx={{ mt: 0.5 }}
+            sx={{ mt: hasOnlyTags ? 0 : 0.5 }}
           >
             {message.client && (
               <Chip
                 size="small"
                 label={message.client}
-                onClick={() => onClientClick(message.client)}
+                onClick={handleClientClick}
                 sx={{
                   height: 16,
                   bgcolor: isOwn ? 'rgba(255,255,255,0.25)' : '#e3f2fd',
@@ -417,7 +427,7 @@ const ChatMessage = ({ message, isOwn, onDelete, onClientClick, onTypeClick, sho
               <Chip
                 size="small"
                 label={message.type}
-                onClick={() => onTypeClick(message.type)}
+                onClick={handleTypeClick}
                 sx={{
                   height: 16,
                   bgcolor: isOwn ? 'rgba(255,255,255,0.15)' : '#f5f5f5',
@@ -525,64 +535,30 @@ const Dashboard = () => {
     
     const unsubscribe = onSnapshot(deleteTimeRef, (doc) => {
       if (doc.exists()) {
-        setDeleteTime(doc.data().timestamp);
+        const data = doc.data();
+        setDeleteTime(data.timestamp);
+        
+        // Actualizar el contador cada minuto
+        const interval = setInterval(() => {
+          const now = new Date();
+          const deleteDate = new Date(data.timestamp);
+          const timeLeft = deleteDate - now;
+          
+          if (timeLeft <= 0) {
+            clearInterval(interval);
+            return;
+          }
+          
+          // Forzar re-render para actualizar el contador
+          setDeleteTime(data.timestamp);
+        }, 60000);
+        
+        return () => clearInterval(interval);
       }
     });
 
     return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    const isFromToday = (timestamp) => {
-      const date = new Date(timestamp);
-      const today = new Date();
-      return date.getDate() === today.getDate() &&
-             date.getMonth() === today.getMonth() &&
-             date.getFullYear() === today.getFullYear();
-    };
-
-    const cleanOldMessages = async () => {
-      try {
-        if (!deleteTime) return;
-        
-        const deleteTimeDate = new Date(deleteTime);
-        const messagesRef = collection(db, 'messages');
-        const snapshot = await getDocs(messagesRef);
-        
-        const batch = writeBatch(db);
-        let hasChanges = false;
-        
-        snapshot.docs.forEach((doc) => {
-          const message = doc.data();
-          const messageDate = message.timestamp?.toDate();
-          if (messageDate && messageDate < deleteTimeDate) {
-            batch.delete(doc.ref);
-            hasChanges = true;
-          }
-        });
-        
-        if (hasChanges) {
-          await batch.commit();
-        }
-      } catch (error) {
-        console.error('Error al limpiar mensajes:', error);
-      }
-    };
-
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    const timeUntilMidnight = tomorrow - now;
-
-    const cleanupTimeout = setTimeout(cleanOldMessages, timeUntilMidnight);
-    const dailyCleanup = setInterval(cleanOldMessages, 24 * 60 * 60 * 1000);
-
-    return () => {
-      clearTimeout(cleanupTimeout);
-      clearInterval(dailyCleanup);
-    };
-  }, [deleteTime]);
 
   useEffect(() => {
     const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
@@ -693,41 +669,34 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user) return;
 
-    const checkUserProfile = async () => {
-      try {
-        const userRef = doc(db, 'analysts', user.uid);
-        const userDoc = await getDoc(userRef);
-        
-        if (!userDoc.exists()) {
-          setIsFirstLogin(true);
-          setOpenProfileDialog(true);
-          setUserProfile({
-            name: user.displayName || '',
-            position: 'Analista',
-            clients: [],
-            interno: '',
-            startTime: '',
-            endTime: '',
-            task: ''
-          });
-        } else {
-          const data = userDoc.data();
-          setUserProfile({
-            name: data.name || user.displayName || '',
-            position: data.position || 'Analista',
-            clients: data.clients || [],
-            interno: data.interno || '',
-            startTime: data.startTime || '',
-            endTime: data.endTime || '',
-            task: data.task || ''
-          });
-        }
-      } catch (error) {
-        console.error('Error checking user profile:', error);
-      }
-    };
+    const userRef = doc(db, 'analysts', user.uid);
+    
+    // Cargar datos del caché local primero
+    const cachedData = localStorage.getItem(`userProfile_${user.uid}`);
+    if (cachedData) {
+      setUserProfile(JSON.parse(cachedData));
+    }
 
-    checkUserProfile();
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        const profileData = {
+          name: data.name || user.displayName || '',
+          position: data.position || 'Analista',
+          clients: data.clients || [],
+          interno: data.interno || '',
+          startTime: data.startTime || '',
+          endTime: data.endTime || '',
+          task: data.task || ''
+        };
+        
+        setUserProfile(profileData);
+        // Guardar en caché local
+        localStorage.setItem(`userProfile_${user.uid}`, JSON.stringify(profileData));
+      }
+    });
+
+    return () => unsubscribe();
   }, [user]);
 
   // Manejar cierre de pestaña o navegador
@@ -1109,18 +1078,29 @@ const Dashboard = () => {
 
     try {
       const targetRef = doc(db, 'analysts', editingAnalyst ? editingAnalyst.id : user.uid);
-      await setDoc(targetRef, {
+      const profileData = {
         ...userProfile,
         email: editingAnalyst ? editingAnalyst.email : user.email,
         avatar: editingAnalyst ? editingAnalyst.avatar : (user.photoURL || '/avatars/default.jpg'),
         status: editingAnalyst ? editingAnalyst.status : 'active',
         lastActive: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-        timestamp: serverTimestamp()
-      }, { merge: true });
+        timestamp: serverTimestamp(),
+        lastModified: new Date().toISOString()
+      };
+
+      await setDoc(targetRef, profileData, { merge: true });
+      
+      // Actualizar caché local
+      if (!editingAnalyst) {
+        localStorage.setItem(`userProfile_${user.uid}`, JSON.stringify(userProfile));
+      }
 
       setOpenProfileDialog(false);
       setIsFirstLogin(false);
       setEditingAnalyst(null);
+      
+      // Cerrar el menú desplegable de clientes
+      setClientMenuAnchorEl(null);
     } catch (error) {
       console.error('Error saving profile:', error);
     }
@@ -1145,19 +1125,10 @@ const Dashboard = () => {
   const handleDeleteAllMessages = async () => {
     if (!isAdmin) return;
     
-    try {
-      const messagesRef = collection(db, 'messages');
-      const snapshot = await getDocs(messagesRef);
-      
-      const batch = writeBatch(db);
-      snapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-      
-      await batch.commit();
-    } catch (error) {
-      console.error('Error al eliminar mensajes:', error);
-    }
+    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+    const [deleteHours, setDeleteHours] = useState(1);
+    
+    setOpenDeleteDialog(true);
   };
 
   return (
@@ -2049,6 +2020,77 @@ const Dashboard = () => {
           <DialogActions>
             <Button onClick={() => setShowDeleteTimeConfig(false)}>
               Cancelar
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={openDeleteDialog}
+          onClose={() => setOpenDeleteDialog(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>
+            Configurar borrado de mensajes
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2 }}>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Seleccione el tiempo después del cual se borrarán los mensajes:
+              </Typography>
+              <FormControl fullWidth>
+                <InputLabel>Tiempo de borrado</InputLabel>
+                <Select
+                  value={deleteHours}
+                  onChange={(e) => setDeleteHours(e.target.value)}
+                  label="Tiempo de borrado"
+                >
+                  {[1, 2, 4, 8, 12, 24].map((hours) => (
+                    <MenuItem key={hours} value={hours}>
+                      {hours} {hours === 1 ? 'hora' : 'horas'}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenDeleteDialog(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={async () => {
+                try {
+                  const messagesRef = collection(db, 'messages');
+                  const snapshot = await getDocs(messagesRef);
+                  
+                  const batch = writeBatch(db);
+                  snapshot.docs.forEach((doc) => {
+                    batch.delete(doc.ref);
+                  });
+                  
+                  await batch.commit();
+                  
+                  // Configurar el nuevo tiempo de borrado
+                  const deleteTimeRef = doc(db, 'config', 'messageDeleteTime');
+                  const newTimestamp = new Date();
+                  newTimestamp.setHours(newTimestamp.getHours() + deleteHours);
+                  
+                  await setDoc(deleteTimeRef, {
+                    timestamp: newTimestamp.toISOString(),
+                    setBy: user.email,
+                    setAt: new Date().toISOString()
+                  });
+                  
+                  setOpenDeleteDialog(false);
+                } catch (error) {
+                  console.error('Error al eliminar mensajes:', error);
+                }
+              }}
+            >
+              Confirmar borrado
             </Button>
           </DialogActions>
         </Dialog>
