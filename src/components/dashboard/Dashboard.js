@@ -163,7 +163,7 @@ const AnalystColumn = ({ title, analysts, type, isAdmin, onDeleteAnalyst }) => {
                         }
                       }}
                     >
-                      <AnalystCard analyst={analyst} />
+                      <AnalystCard analyst={analyst} isAdmin={isAdmin} />
                     </Card>
                   )}
                 </Draggable>
@@ -196,23 +196,34 @@ AnalystColumn.propTypes = {
   onDeleteAnalyst: PropTypes.func.isRequired
 };
 
-const AnalystCard = ({ analyst }) => (
+const AnalystCard = ({ analyst, isAdmin, onEdit }) => (
   <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
       <Avatar src={analyst.avatar} sx={{ width: 36, height: 36 }} />
       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 0.5 }}>
-          {analyst.name}
-          {analyst.interno && (
-            <Typography 
-              component="span" 
-              variant="caption" 
-              sx={{ ml: 1, color: 'text.secondary' }}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 0.5 }}>
+            {analyst.name}
+            {analyst.interno && (
+              <Typography 
+                component="span" 
+                variant="caption" 
+                sx={{ ml: 1, color: 'text.secondary' }}
+              >
+                (Int. {analyst.interno})
+              </Typography>
+            )}
+          </Typography>
+          {isAdmin && (
+            <IconButton 
+              size="small" 
+              onClick={() => onEdit(analyst)}
+              sx={{ ml: 1 }}
             >
-              (Int. {analyst.interno})
-            </Typography>
+              <EditIcon fontSize="small" />
+            </IconButton>
           )}
-        </Typography>
+        </Box>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
           {analyst.position} • {analyst.startTime}-{analyst.endTime}
         </Typography>
@@ -256,6 +267,8 @@ AnalystCard.propTypes = {
     lastSeen: PropTypes.string,
     reason: PropTypes.string,
   }).isRequired,
+  isAdmin: PropTypes.bool.isRequired,
+  onEdit: PropTypes.func.isRequired
 };
 
 const ChatMessage = ({ message, isOwn, onDelete, onClientClick, onTypeClick, showSender }) => {
@@ -489,6 +502,7 @@ const Dashboard = () => {
   const [isFirstLogin, setIsFirstLogin] = useState(false);
   const [deleteTime, setDeleteTime] = useState(null);
   const [showDeleteTimeConfig, setShowDeleteTimeConfig] = useState(false);
+  const [editingAnalyst, setEditingAnalyst] = useState(null);
 
   // Agregar estados para las columnas de analistas
   const [activeAnalysts, setActiveAnalysts] = useState([]);
@@ -596,12 +610,12 @@ const Dashboard = () => {
       try {
         const userData = {
           id: user.uid,
-          name: "Leonardo Mirkin",
+          name: userProfile.name || user.displayName || '',
           email: user.email,
           avatar: user.photoURL || '/avatars/default.jpg',
           status: 'active',
-          interno: "105",
-          clients: ["Coordinación"],
+          interno: userProfile.interno || '',
+          clients: userProfile.clients || [],
           lastActive: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
           timestamp: serverTimestamp()
         };
@@ -806,18 +820,82 @@ const Dashboard = () => {
   };
 
   const messageTypes = [
-    'Auditar Solicitud',
+    'Auditar Solicitud/es',
     'Comunicarse',
     'Mail',
-    'Pasar llamado'
+    'Pasar llamado',
+    'Altas/Bajas',
+    'Soporte',
   ];
 
   const clients = [
-    'Banco XYZ',
-    'Seguros ABC',
-    'Retail MNO',
-    'Servicios PQR',
-    'Industrias LMN'
+    'Aceitera General Deheza S.A.',
+    'Andina Empaques Argentina S.A.',
+    'Arcor S.A.I.C.',
+    'Arcor S.A.I.C. Proveedores',
+    'Arcor S.A.I.C. Transporte de Personas',
+    'Arla Foods Ingredients SA',
+    'Assist Cargo SA',
+    'Bebidas y Alimentos de Uraba S.A.',
+    'Bombas Grundfos de Argentina S.A.U.',
+    'Cartocor Sociedad Anónima',
+    'Ceibos Group',
+    'Constructora Calchaqui S.A.',
+    'Coca-Cola Andina Argentina',
+    'Cosufi S.A.',
+    'Cotagro Cooperativa Agropecuaria Limitada',
+    'Danisco Argentina SA',
+    'Distribuidora de Gas Cuyana S.A.',
+    'Distribuidora de Gas del Centro S.A.',
+    'Dos Anclas S.A.',
+    'Establecimiento Las Marias S.A.C.I.F.A.',
+    'Evonik Argentina S.A.',
+    'Evonik Metilatos S.A.',
+    'FCA Automobiles Argentina S.A.',
+    'Ferrum',
+    'FV SA',
+    'GERDAU (Sipar Aceros)',
+    'G P V Sociedad Anonima',
+    'Helacor S.A.',
+    'Industrias Guidi SACIF',
+    'La Compañia Gaseosas Leticia S.A.S',
+    'Las Taperitas SA',
+    'MAHLE Argentina S.A.',
+    'MAHLE Argentina S.A. Guarderia',
+    'Tarjeta Naranja S.A.U',
+    'Newsan Sociedad Anónima',
+    'Ortiz y Cia. S.A.',
+    'Palmar S.A.',
+    'Paraguay Refrescos S.A.',
+    'Parque Eólico Arauco S.A.P.E.M.',
+    'Piedra Grande S.A.M.I.C.A. Y F.',
+    'PB Leiner Argentina SA',
+    'PB Leiner - Guarderías',
+    'Petroquímica Rio Tercero S.A.',
+    'Porta Hnos SA',
+    'Pro De Man S.A',
+    'Punta del Agua SA',
+    'QX Logistica SA',
+    'Reginald Lee S.A.',
+    'Rosenarg S.R.L.',
+    'Sancor Cooperativas Unidas Limitada',
+    'Sancor RMP',
+    'Scrapservice S.A.',
+    'Seaboard Energías Renovables y Alimentos SRL',
+    'Siderca S.A.I.C. (SIAT/SCRAP)',
+    'Sodexo México S.A. De C.V',
+    'Stratton Argentina S.A. (Konecta)',
+    'Sucesores de Alfredo Williner S.A.',
+    'Syngenta Agro S.A.- Servicios Agro',
+    'Syngenta Agro S.A.- Parentales',
+    'Tenaris Guarderia',
+    'Ternium Argentina S.A.',
+    'Veronica S.A.C.I.A.F.E.I.',
+    'Vitopel Argentina SA',
+    'Vientos de Arauco Renovables SAU',
+    'Multicliente',
+    'Embotelladora del Atlantico S.A.',
+
   ];
 
   const handleMessageChange = (e) => {
@@ -1011,24 +1089,40 @@ const Dashboard = () => {
     }
   };
 
+  const handleEditAnalyst = async (analyst) => {
+    if (!isAdmin) return;
+    setEditingAnalyst(analyst);
+    setUserProfile({
+      name: analyst.name || '',
+      position: analyst.position || 'Analista',
+      clients: analyst.clients || [],
+      interno: analyst.interno || '',
+      startTime: analyst.startTime || '',
+      endTime: analyst.endTime || '',
+      task: analyst.task || ''
+    });
+    setOpenProfileDialog(true);
+  };
+
   const handleSaveProfile = async () => {
     if (!user) return;
 
     try {
-      const userRef = doc(db, 'analysts', user.uid);
-      await setDoc(userRef, {
+      const targetRef = doc(db, 'analysts', editingAnalyst ? editingAnalyst.id : user.uid);
+      await setDoc(targetRef, {
         ...userProfile,
-        email: user.email,
-        avatar: user.photoURL || '/avatars/default.jpg',
-        status: 'active',
+        email: editingAnalyst ? editingAnalyst.email : user.email,
+        avatar: editingAnalyst ? editingAnalyst.avatar : (user.photoURL || '/avatars/default.jpg'),
+        status: editingAnalyst ? editingAnalyst.status : 'active',
         lastActive: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
         timestamp: serverTimestamp()
       }, { merge: true });
 
       setOpenProfileDialog(false);
       setIsFirstLogin(false);
+      setEditingAnalyst(null);
     } catch (error) {
-      console.error('Error saving user profile:', error);
+      console.error('Error saving profile:', error);
     }
   };
 
@@ -1045,6 +1139,24 @@ const Dashboard = () => {
       });
     } catch (error) {
       console.error('Error al configurar tiempo de borrado:', error);
+    }
+  };
+
+  const handleDeleteAllMessages = async () => {
+    if (!isAdmin) return;
+    
+    try {
+      const messagesRef = collection(db, 'messages');
+      const snapshot = await getDocs(messagesRef);
+      
+      const batch = writeBatch(db);
+      snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      
+      await batch.commit();
+    } catch (error) {
+      console.error('Error al eliminar mensajes:', error);
     }
   };
 
@@ -1085,30 +1197,54 @@ const Dashboard = () => {
             borderColor: 'grey.200',
             bgcolor: '#4285f4',
           }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'white' }}>
-              Chat del Equipo
-              {deleteTime && (
-                <Tooltip title={isAdmin ? "Configurar tiempo de borrado" : "Tiempo restante hasta el borrado de mensajes"}>
-                  <Chip
-                    size="small"
-                    label={formatDistanceToNow(new Date(deleteTime), { 
-                      locale: es, 
-                      addSuffix: true 
-                    })}
-                    onClick={() => isAdmin && setShowDeleteTimeConfig(true)}
-                    sx={{
-                      ml: 1,
-                      bgcolor: 'rgba(255,255,255,0.1)',
-                      color: 'white',
-                      cursor: isAdmin ? 'pointer' : 'default',
-                      '&:hover': isAdmin ? {
-                        bgcolor: 'rgba(255,255,255,0.2)'
-                      } : {}
-                    }}
-                  />
-                </Tooltip>
-              )}
-            </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              mb: 2 
+            }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
+                Chat del Equipo
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                {deleteTime && (
+                  <Tooltip title={isAdmin ? "Configurar tiempo de borrado" : "Tiempo restante hasta el borrado de mensajes"}>
+                    <Chip
+                      size="small"
+                      label={formatDistanceToNow(new Date(deleteTime), { 
+                        locale: es, 
+                        addSuffix: true 
+                      })}
+                      onClick={() => isAdmin && setShowDeleteTimeConfig(true)}
+                      sx={{
+                        bgcolor: 'rgba(255,255,255,0.1)',
+                        color: 'white',
+                        cursor: isAdmin ? 'pointer' : 'default',
+                        '&:hover': isAdmin ? {
+                          bgcolor: 'rgba(255,255,255,0.2)'
+                        } : {}
+                      }}
+                    />
+                  </Tooltip>
+                )}
+                {isAdmin && (
+                  <Tooltip title="Borrar todos los mensajes">
+                    <IconButton
+                      size="small"
+                      onClick={handleDeleteAllMessages}
+                      sx={{ 
+                        color: 'white',
+                        '&:hover': {
+                          bgcolor: 'rgba(255,255,255,0.1)'
+                        }
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+            </Box>
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
               <TextField
                 size="small"
@@ -1732,7 +1868,9 @@ const Dashboard = () => {
           fullWidth
         >
           <DialogTitle>
-            {isFirstLogin ? 'Bienvenido! Complete su información' : 'Editar Perfil'}
+            {isFirstLogin ? 'Bienvenido! Complete su información' : 
+             editingAnalyst ? `Editar perfil de ${editingAnalyst.name}` : 
+             'Editar Perfil'}
           </DialogTitle>
           <DialogContent>
             <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
