@@ -461,11 +461,13 @@ const Dashboard = () => {
   const chatEndRef = useRef(null);
   const [analysts, setAnalysts] = useState([]);
   const isAdmin = user?.email === 'lmirkin@gcgcontrol.com';
-  const [filteredClient, setFilteredClient] = useState('');
-  const [filteredType, setFilteredType] = useState('');
+  const [localFilters, setLocalFilters] = useState({
+    searchQuery: '',
+    client: '',
+    type: ''
+  });
   const [clientMenuAnchorEl, setClientMenuAnchorEl] = useState(null);
   const [typeMenuAnchorEl, setTypeMenuAnchorEl] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [announcements, setAnnouncements] = useState([]);
   const [openAnnouncementDialog, setOpenAnnouncementDialog] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
@@ -686,8 +688,8 @@ const Dashboard = () => {
           setIsFirstLogin(true);
           setOpenProfileDialog(true);
           setUserProfile({
-            name: user.displayName || user.email,
-            position: 'Analista', // Posición por defecto
+            name: user.displayName || '',
+            position: 'Analista',
             clients: [],
             interno: '',
             startTime: '',
@@ -697,7 +699,7 @@ const Dashboard = () => {
         } else {
           const data = userDoc.data();
           setUserProfile({
-            name: data.name || user.displayName || user.email,
+            name: data.name || user.displayName || '',
             position: data.position || 'Analista',
             clients: data.clients || [],
             interno: data.interno || '',
@@ -740,7 +742,7 @@ const Dashboard = () => {
 
     try {
       await addDoc(collection(db, 'messages'), {
-        sender: user.displayName || user.email,
+        sender: userProfile.name || user.displayName || user.email,
         message: message.trim(),
         time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
         timestamp: serverTimestamp(),
@@ -894,12 +896,12 @@ const Dashboard = () => {
   };
 
   const filteredMessages = chatMessages.filter(msg => {
-    const matchesSearch = !searchQuery || 
-      msg.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      msg.client?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      msg.type?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesClient = !filteredClient || msg.client === filteredClient;
-    const matchesType = !filteredType || msg.type === filteredType;
+    const matchesSearch = !localFilters.searchQuery || 
+      msg.message?.toLowerCase().includes(localFilters.searchQuery.toLowerCase()) ||
+      msg.client?.toLowerCase().includes(localFilters.searchQuery.toLowerCase()) ||
+      msg.type?.toLowerCase().includes(localFilters.searchQuery.toLowerCase());
+    const matchesClient = !localFilters.client || msg.client === localFilters.client;
+    const matchesType = !localFilters.type || msg.type === localFilters.type;
     return matchesSearch && matchesClient && matchesType;
   });
 
@@ -1112,8 +1114,8 @@ const Dashboard = () => {
                 size="small"
                 placeholder="Buscar mensajes..."
                 fullWidth
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={localFilters.searchQuery}
+                onChange={(e) => setLocalFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
                 InputProps={{
                   startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />,
                   sx: {
@@ -1138,10 +1140,10 @@ const Dashboard = () => {
                     bgcolor: 'rgba(255,255,255,0.9)' 
                   } 
                 }}
-                onClick={() => setSearchQuery('')}
-                disabled={!searchQuery}
+                onClick={() => setLocalFilters(prev => ({ ...prev, searchQuery: '' }))}
+                disabled={!localFilters.searchQuery}
               >
-                {searchQuery ? <ClearIcon /> : <FilterIcon />}
+                {localFilters.searchQuery ? <ClearIcon /> : <FilterIcon />}
               </IconButton>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1149,12 +1151,12 @@ const Dashboard = () => {
                 select
                 size="small"
                 fullWidth
-                value={filteredClient}
-                onChange={(e) => setFilteredClient(e.target.value)}
+                value={localFilters.client}
+                onChange={(e) => setLocalFilters(prev => ({ ...prev, client: e.target.value }))}
                 placeholder="Filtrar por Cliente"
                 SelectProps={{
                   displayEmpty: true,
-                  renderValue: filteredClient ? undefined : () => "Filtrar por Cliente",
+                  renderValue: localFilters.client ? undefined : () => "Filtrar por Cliente",
                 }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
@@ -1191,12 +1193,12 @@ const Dashboard = () => {
                 select
                 size="small"
                 fullWidth
-                value={filteredType}
-                onChange={(e) => setFilteredType(e.target.value)}
+                value={localFilters.type}
+                onChange={(e) => setLocalFilters(prev => ({ ...prev, type: e.target.value }))}
                 placeholder="Filtrar por Tipo"
                 SelectProps={{
                   displayEmpty: true,
-                  renderValue: filteredType ? undefined : () => "Filtrar por Tipo",
+                  renderValue: localFilters.type ? undefined : () => "Filtrar por Tipo",
                 }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
@@ -1259,8 +1261,8 @@ const Dashboard = () => {
                       message={msg} 
                       isOwn={msg.userId === user?.uid}
                       onDelete={handleDeleteMessage}
-                      onClientClick={setFilteredClient}
-                      onTypeClick={setFilteredType}
+                      onClientClick={setLocalFilters}
+                      onTypeClick={setLocalFilters}
                       showSender={showSender}
                     />
                   );
@@ -1403,36 +1405,36 @@ const Dashboard = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Chip
-                  icon={<BusinessIcon sx={{ fontSize: 16, color: selectedClient ? '#4285f4' : 'text.secondary' }} />}
-                  label={selectedClient || "Sin cliente"}
+                  icon={<BusinessIcon sx={{ fontSize: 16, color: localFilters.client ? '#4285f4' : 'text.secondary' }} />}
+                  label={localFilters.client || "Sin cliente"}
                   size="small"
                   onClick={handleClientChipClick}
-                  onDelete={selectedClient ? () => setSelectedClient('') : undefined}
+                  onDelete={localFilters.client ? () => setLocalFilters(prev => ({ ...prev, client: '' })) : undefined}
                   sx={{ 
                     height: 24,
                     cursor: 'pointer',
-                    bgcolor: selectedClient ? 'rgba(66, 133, 244, 0.08)' : 'transparent',
-                    color: selectedClient ? '#4285f4' : 'text.primary',
-                    borderColor: selectedClient ? '#4285f4' : 'grey.300',
+                    bgcolor: localFilters.client ? 'rgba(66, 133, 244, 0.08)' : 'transparent',
+                    color: localFilters.client ? '#4285f4' : 'text.primary',
+                    borderColor: localFilters.client ? '#4285f4' : 'grey.300',
                     '&:hover': {
-                      bgcolor: selectedClient ? 'rgba(66, 133, 244, 0.12)' : 'rgba(0, 0, 0, 0.04)'
+                      bgcolor: localFilters.client ? 'rgba(66, 133, 244, 0.12)' : 'rgba(0, 0, 0, 0.04)'
                     }
                   }}
                 />
                 <Chip
-                  icon={<AssignmentIcon sx={{ fontSize: 16, color: selectedType ? '#4285f4' : 'text.secondary' }} />}
-                  label={selectedType || "Sin tipo"}
+                  icon={<AssignmentIcon sx={{ fontSize: 16, color: localFilters.type ? '#4285f4' : 'text.secondary' }} />}
+                  label={localFilters.type || "Sin tipo"}
                   size="small"
                   onClick={handleTypeChipClick}
-                  onDelete={selectedType ? () => setSelectedType('') : undefined}
+                  onDelete={localFilters.type ? () => setLocalFilters(prev => ({ ...prev, type: '' })) : undefined}
                   sx={{ 
                     height: 24,
                     cursor: 'pointer',
-                    bgcolor: selectedType ? 'rgba(66, 133, 244, 0.08)' : 'transparent',
-                    color: selectedType ? '#4285f4' : 'text.primary',
-                    borderColor: selectedType ? '#4285f4' : 'grey.300',
+                    bgcolor: localFilters.type ? 'rgba(66, 133, 244, 0.08)' : 'transparent',
+                    color: localFilters.type ? '#4285f4' : 'text.primary',
+                    borderColor: localFilters.type ? '#4285f4' : 'grey.300',
                     '&:hover': {
-                      bgcolor: selectedType ? 'rgba(66, 133, 244, 0.12)' : 'rgba(0, 0, 0, 0.04)'
+                      bgcolor: localFilters.type ? 'rgba(66, 133, 244, 0.12)' : 'rgba(0, 0, 0, 0.04)'
                     }
                   }}
                 />
@@ -1441,7 +1443,7 @@ const Dashboard = () => {
                 variant="contained"
                 endIcon={<Send />}
                 size="small"
-                disabled={!message.trim() && !selectedClient && !selectedType}
+                disabled={!message.trim() && !localFilters.client && !localFilters.type}
                 onClick={handleSendMessage}
                 sx={{
                   bgcolor: '#4285f4',
