@@ -500,38 +500,38 @@ const Dashboard = () => {
     setOfflineAnalysts(offline);
   }, [analysts]);
 
-  const isFromToday = (timestamp) => {
-    const date = new Date(timestamp);
-    const today = new Date();
-    return date.getDate() === today.getDate() &&
-           date.getMonth() === today.getMonth() &&
-           date.getFullYear() === today.getFullYear();
-  };
-
-  const cleanOldMessages = async () => {
-    try {
-      const messagesRef = collection(db, 'messages');
-      const snapshot = await getDocs(messagesRef);
-      
-      if (snapshot.docs.length > 0) {
-        const updates = {};
-        snapshot.docs.forEach((doc) => {
-          const message = doc.data();
-          if (!isFromToday(message.timestamp)) {
-            updates[doc.id] = null;
-          }
-        });
-        
-        if (Object.keys(updates).length > 0) {
-          await deleteDoc(doc(db, 'messages', Object.keys(updates)[0]));
-        }
-      }
-    } catch (error) {
-      console.error('Error al limpiar mensajes antiguos:', error);
-    }
-  };
-
   useEffect(() => {
+    const isFromToday = (timestamp) => {
+      const date = new Date(timestamp);
+      const today = new Date();
+      return date.getDate() === today.getDate() &&
+             date.getMonth() === today.getMonth() &&
+             date.getFullYear() === today.getFullYear();
+    };
+
+    const cleanOldMessages = async () => {
+      try {
+        const messagesRef = collection(db, 'messages');
+        const snapshot = await getDocs(messagesRef);
+        
+        if (snapshot.docs.length > 0) {
+          const updates = {};
+          snapshot.docs.forEach((doc) => {
+            const message = doc.data();
+            if (!isFromToday(message.timestamp)) {
+              updates[doc.id] = null;
+            }
+          });
+          
+          if (Object.keys(updates).length > 0) {
+            await deleteDoc(doc(db, 'messages', Object.keys(updates)[0]));
+          }
+        }
+      } catch (error) {
+        console.error('Error al limpiar mensajes antiguos:', error);
+      }
+    };
+
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -539,14 +539,13 @@ const Dashboard = () => {
     const timeUntilMidnight = tomorrow - now;
 
     const cleanupTimeout = setTimeout(cleanOldMessages, timeUntilMidnight);
-
     const dailyCleanup = setInterval(cleanOldMessages, 24 * 60 * 60 * 1000);
 
     return () => {
       clearTimeout(cleanupTimeout);
       clearInterval(dailyCleanup);
     };
-  }, [cleanOldMessages]);
+  }, []);
 
   useEffect(() => {
     const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
