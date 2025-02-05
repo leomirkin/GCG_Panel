@@ -56,7 +56,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-const AnalystColumn = ({ title, analysts, type, isAdmin, onDeleteAnalyst }) => {
+const AnalystColumn = ({ title, analysts, type, isAdmin, onDeleteAnalyst, onEditAnalyst }) => {
   const [searchTerm, setSearchTerm] = useState('');
   
   const filteredAnalysts = analysts.filter(analyst => {
@@ -163,7 +163,11 @@ const AnalystColumn = ({ title, analysts, type, isAdmin, onDeleteAnalyst }) => {
                         }
                       }}
                     >
-                      <AnalystCard analyst={analyst} isAdmin={isAdmin} />
+                      <AnalystCard 
+                        analyst={analyst} 
+                        isAdmin={isAdmin} 
+                        onEdit={onEditAnalyst}
+                      />
                     </Card>
                   )}
                 </Draggable>
@@ -193,68 +197,88 @@ AnalystColumn.propTypes = {
   ).isRequired,
   type: PropTypes.oneOf(['active', 'absent', 'offline']).isRequired,
   isAdmin: PropTypes.bool.isRequired,
-  onDeleteAnalyst: PropTypes.func.isRequired
+  onDeleteAnalyst: PropTypes.func.isRequired,
+  onEditAnalyst: PropTypes.func.isRequired
 };
 
-const AnalystCard = ({ analyst, isAdmin, onEdit }) => (
-  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-      <Avatar src={analyst.avatar} sx={{ width: 36, height: 36 }} />
-      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 0.5 }}>
-            {analyst.name}
-            {analyst.interno && (
-              <Typography 
-                component="span" 
-                variant="caption" 
-                sx={{ ml: 1, color: 'text.secondary' }}
+const AnalystCard = ({ analyst, isAdmin, onEdit }) => {
+  const handleEdit = () => {
+    if (isAdmin && onEdit) {
+      onEdit(analyst);
+    }
+  };
+
+  return (
+    <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Avatar 
+          src={analyst.photoURL || analyst.avatar} 
+          alt={analyst.name}
+          sx={{ 
+            width: 36, 
+            height: 36,
+            border: '2px solid',
+            borderColor: 'grey.200'
+          }}
+        >
+          {!analyst.photoURL && !analyst.avatar && analyst.name?.[0]}
+        </Avatar>
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 500, mb: 0.5 }}>
+              {analyst.name}
+              {analyst.interno && (
+                <Typography 
+                  component="span" 
+                  variant="caption" 
+                  sx={{ ml: 1, color: 'text.secondary' }}
+                >
+                  (Int. {analyst.interno})
+                </Typography>
+              )}
+            </Typography>
+            {isAdmin && (
+              <IconButton 
+                size="small" 
+                onClick={handleEdit}
+                sx={{ ml: 1 }}
               >
-                (Int. {analyst.interno})
-              </Typography>
+                <EditIcon fontSize="small" />
+              </IconButton>
             )}
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            {analyst.position} • {analyst.startTime}-{analyst.endTime}
           </Typography>
-          {isAdmin && (
-            <IconButton 
-              size="small" 
-              onClick={() => onEdit(analyst)}
-              sx={{ ml: 1 }}
-            >
-              <EditIcon fontSize="small" />
-            </IconButton>
+          {analyst.task && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              {analyst.task}
+            </Typography>
+          )}
+          {analyst.clients && analyst.clients.length > 0 && (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
+              {analyst.clients.map((client, idx) => (
+                <Chip
+                  key={idx}
+                  label={client}
+                  size="small"
+                  variant="outlined"
+                  sx={{ 
+                    height: 20, 
+                    '& .MuiChip-label': { 
+                      px: 1, 
+                      fontSize: '0.7rem' 
+                    } 
+                  }}
+                />
+              ))}
+            </Box>
           )}
         </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-          {analyst.position} • {analyst.startTime}-{analyst.endTime}
-        </Typography>
-        {analyst.task && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-            {analyst.task}
-          </Typography>
-        )}
-        {analyst.clients && analyst.clients.length > 0 && (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.5 }}>
-            {analyst.clients.map((client, idx) => (
-              <Chip
-                key={idx}
-                label={client}
-                size="small"
-                variant="outlined"
-                sx={{ 
-                  height: 20, 
-                  '& .MuiChip-label': { 
-                    px: 1, 
-                    fontSize: '0.7rem' 
-                  } 
-                }}
-              />
-            ))}
-          </Box>
-        )}
       </Box>
-    </Box>
-  </CardContent>
-);
+    </CardContent>
+  );
+};
 
 AnalystCard.propTypes = {
   analyst: PropTypes.shape({
@@ -272,9 +296,8 @@ AnalystCard.propTypes = {
 };
 
 const ChatMessage = ({ message, isOwn, onDelete, onClientClick, onTypeClick, showSender }) => {
-  const processedMessage = message.message?.replace(/@\w+|#\w+/g, '').trim();
-  const hasOnlyTags = !processedMessage && (message.client || message.type);
   const [showDelete, setShowDelete] = useState(false);
+  const hasOnlyTags = !message.message?.trim() && (message.client || message.type);
 
   const handleClientClick = () => {
     onClientClick(prev => ({ ...prev, client: message.client }));
@@ -317,82 +340,24 @@ const ChatMessage = ({ message, isOwn, onDelete, onClientClick, onTypeClick, sho
             showSender ? '1.2rem' : 
             isOwn ? '1.2rem 0.3rem 1.2rem 1.2rem' : '0.3rem 1.2rem 1.2rem 1.2rem',
           p: hasOnlyTags ? 0.8 : '8px 12px',
-          position: 'relative'
+          position: 'relative',
+          transform: isOwn && showDelete ? 'translateX(-24px)' : 'translateX(0)',
+          transition: 'transform 0.2s ease-in-out',
         }}
       >
-        {!hasOnlyTags && (
-          <Box sx={{ 
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 1,
-            position: 'relative',
-          }}>
-            <Box sx={{ 
-              flex: 1,
-              minWidth: 0,
-            }}>
-              {processedMessage && (
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    color: isOwn ? 'white' : '#1a1a1a',
-                    wordBreak: 'break-word',
-                    fontSize: '0.85rem',
-                    lineHeight: 1.4,
-                    display: 'inline',
-                    mr: 1
-                  }}
-                >
-                  {processedMessage}
-                </Typography>
-              )}
-            </Box>
-
-            <Box sx={{ 
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              flexShrink: 0,
-              position: 'relative',
-              top: 2
-            }}>
-              <Typography 
-                className="message-time"
-                variant="caption" 
-                sx={{ 
-                  fontSize: '0.7rem',
-                  color: isOwn ? 'rgba(255,255,255,0.8)' : 'text.secondary',
-                  transition: 'transform 0.2s ease-in-out',
-                  transform: showDelete ? 'translateX(-24px)' : 'translateX(0)',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {message.time}
-              </Typography>
-
-              {isOwn && (
-                <IconButton
-                  className="delete-button"
-                  size="small"
-                  onClick={() => onDelete(message.id)}
-                  sx={{ 
-                    p: 0.2,
-                    color: isOwn ? 'rgba(255,255,255,0.8)' : 'text.secondary',
-                    opacity: showDelete ? 1 : 0,
-                    visibility: showDelete ? 'visible' : 'hidden',
-                    position: 'absolute',
-                    right: -8,
-                    transition: 'opacity 0.2s ease-in-out, visibility 0.2s ease-in-out',
-                    '&:hover': {
-                      color: isOwn ? 'white' : 'text.primary'
-                    }
-                  }}
-                >
-                  <DeleteOutline fontSize="small" />
-                </IconButton>
-              )}
-            </Box>
-          </Box>
+        {!hasOnlyTags && message.message?.trim() && (
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: isOwn ? 'white' : '#1a1a1a',
+              wordBreak: 'break-word',
+              fontSize: '0.85rem',
+              lineHeight: 1.4,
+              mb: (message.client || message.type) ? 0.5 : 0
+            }}
+          >
+            {message.message.trim()}
+          </Typography>
         )}
 
         {(message.client || message.type) && (
@@ -447,6 +412,34 @@ const ChatMessage = ({ message, isOwn, onDelete, onClientClick, onTypeClick, sho
             )}
           </Stack>
         )}
+
+        {isOwn && (
+          <Box sx={{ 
+            display: 'flex',
+            alignItems: 'center',
+            position: 'absolute',
+            right: -24,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            opacity: showDelete ? 1 : 0,
+            transition: 'opacity 0.2s ease-in-out',
+            pointerEvents: showDelete ? 'auto' : 'none',
+          }}>
+            <IconButton
+              size="small"
+              onClick={() => onDelete(message.id)}
+              sx={{ 
+                color: 'text.secondary',
+                p: 0.2,
+                '&:hover': {
+                  color: 'error.main'
+                }
+              }}
+            >
+              <DeleteOutline fontSize="small" />
+            </IconButton>
+          </Box>
+        )}
       </Box>
     </Box>
   );
@@ -499,7 +492,7 @@ const Dashboard = () => {
   const [openProfileDialog, setOpenProfileDialog] = useState(false);
   const [userProfile, setUserProfile] = useState({
     name: '',
-    position: 'Analista',
+    position: '',
     clients: [],
     interno: '',
     startTime: '',
@@ -507,11 +500,8 @@ const Dashboard = () => {
     task: ''
   });
   const [isFirstLogin, setIsFirstLogin] = useState(false);
-  const [deleteTime, setDeleteTime] = useState(null);
-  const [showDeleteTimeConfig, setShowDeleteTimeConfig] = useState(false);
   const [editingAnalyst, setEditingAnalyst] = useState(null);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-  const [deleteHours, setDeleteHours] = useState(1);
   const [activeAnalysts, setActiveAnalysts] = useState([]);
   const [absentAnalysts, setAbsentAnalysts] = useState([]);
   const [offlineAnalysts, setOfflineAnalysts] = useState([]);
@@ -519,65 +509,6 @@ const Dashboard = () => {
   const textFieldRef = useRef(null);
   const chatEndRef = useRef(null);
   const isAdmin = user?.email === 'lmirkin@gcgcontrol.com';
-
-  useEffect(() => {
-    // Clasificar analistas por estado
-    const active = analysts.filter(a => a.status === 'active' || !a.status);
-    const absent = analysts.filter(a => a.status === 'absent');
-    const offline = analysts.filter(a => a.status === 'offline');
-    
-    setActiveAnalysts(active);
-    setAbsentAnalysts(absent);
-    setOfflineAnalysts(offline);
-  }, [analysts]);
-
-  useEffect(() => {
-    const deleteTimeRef = doc(db, 'config', 'messageDeleteTime');
-    
-    const unsubscribe = onSnapshot(deleteTimeRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        setDeleteTime(data.timestamp);
-        
-        // Actualizar el contador cada minuto
-        const interval = setInterval(() => {
-          const now = new Date();
-          const deleteDate = new Date(data.timestamp);
-          const timeLeft = deleteDate - now;
-          
-          if (timeLeft <= 0) {
-            clearInterval(interval);
-            return;
-          }
-          
-          // Forzar re-render para actualizar el contador
-          setDeleteTime(data.timestamp);
-        }, 60000);
-        
-        return () => clearInterval(interval);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const messages = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate()
-      })).filter(msg => msg.timestamp);
-      
-      setChatMessages(messages);
-      setLoading(false);
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    });
-
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -593,6 +524,10 @@ const Dashboard = () => {
           status: 'active',
           interno: userProfile.interno || '',
           clients: userProfile.clients || [],
+          position: userProfile.position || '',
+          startTime: userProfile.startTime || '',
+          endTime: userProfile.endTime || '',
+          task: userProfile.task || '',
           lastActive: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
           timestamp: serverTimestamp()
         };
@@ -617,12 +552,11 @@ const Dashboard = () => {
         const data = doc.data();
         const timestamp = data.timestamp?.toDate();
         // Marcar como offline si no hay actualización en los últimos 3 minutos
-        if (timestamp && timestamp < threeMinutesAgo) {
-          data.status = 'offline';
-        }
+        const status = timestamp && timestamp < threeMinutesAgo ? 'offline' : data.status || 'active';
         return {
           id: doc.id,
-          ...data
+          ...data,
+          status
         };
       });
       setAnalysts(formattedAnalysts);
@@ -640,31 +574,34 @@ const Dashboard = () => {
         }, { merge: true }).catch(error => console.error('Error in cleanup:', error));
       }
     };
-  }, [user]);
+  }, [user, userProfile]);
 
   useEffect(() => {
-    console.log('Configurando listener de comunicados...');
+    const active = analysts.filter(a => a.status === 'active');
+    const absent = analysts.filter(a => a.status === 'absent');
+    const offline = analysts.filter(a => a.status === 'offline');
     
-    const q = query(collection(db, 'announcements'), orderBy('timestamp', 'desc'));
+    setActiveAnalysts(active);
+    setAbsentAnalysts(absent);
+    setOfflineAnalysts(offline);
+  }, [analysts]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log('Snapshot recibido');
-      const formattedAnnouncements = snapshot.docs.map(doc => ({
+      const messages = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate() // Convertir timestamp a Date
-      })).filter(ann => ann.timestamp); // Filtrar anuncios sin timestamp
+        timestamp: doc.data().timestamp?.toDate()
+      })).filter(msg => msg.timestamp);
       
-      console.log('Comunicados formateados:', formattedAnnouncements);
-      setAnnouncements(formattedAnnouncements);
-    }, (error) => {
-      console.error('Error al cargar comunicados:', error);
+      setChatMessages(messages);
+      setLoading(false);
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     });
 
-    return () => {
-      console.log('Limpiando listener de comunicados');
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -672,18 +609,12 @@ const Dashboard = () => {
 
     const userRef = doc(db, 'analysts', user.uid);
     
-    // Cargar datos del caché local primero
-    const cachedData = localStorage.getItem(`userProfile_${user.uid}`);
-    if (cachedData) {
-      setUserProfile(JSON.parse(cachedData));
-    }
-
     const unsubscribe = onSnapshot(userRef, (doc) => {
       if (doc.exists()) {
         const data = doc.data();
         const profileData = {
           name: data.name || user.displayName || '',
-          position: data.position || 'Analista',
+          position: data.position || '',
           clients: data.clients || [],
           interno: data.interno || '',
           startTime: data.startTime || '',
@@ -692,8 +623,17 @@ const Dashboard = () => {
         };
         
         setUserProfile(profileData);
-        // Guardar en caché local
         localStorage.setItem(`userProfile_${user.uid}`, JSON.stringify(profileData));
+      } else {
+        // Si el documento no existe, crear uno nuevo con datos básicos
+        const initialData = {
+          name: user.displayName || '',
+          email: user.email,
+          avatar: user.photoURL || '/avatars/default.jpg',
+          status: 'active',
+          timestamp: serverTimestamp()
+        };
+        setDoc(userRef, initialData);
       }
     });
 
@@ -722,7 +662,7 @@ const Dashboard = () => {
   }, [user]);
 
   const handleSendMessage = async () => {
-    if (!user) return;
+    if (!user || (!message.trim() && !selectedClient && !selectedType)) return;
 
     try {
       await addDoc(collection(db, 'messages'), {
@@ -900,24 +840,23 @@ const Dashboard = () => {
   };
 
   const handleMentionSelect = (value) => {
-    const beforeCursor = message.slice(0, cursorPosition);
-    const afterCursor = message.slice(cursorPosition);
-    
-    let lastSymbolIndex;
     if (mentionType === 'client') {
-      lastSymbolIndex = beforeCursor.lastIndexOf('@');
       setSelectedClient(value);
     } else {
-      lastSymbolIndex = beforeCursor.lastIndexOf('#');
       setSelectedType(value);
     }
-    
-    const newMessage = beforeCursor.slice(0, lastSymbolIndex) + 
-                      (mentionType === 'client' ? `@${value}` : `#${value}`) + 
-                      ' ' + afterCursor;
-    
-    setMessage(newMessage);
+    setMessage('');
     setMentionAnchorEl(null);
+  };
+
+  const handleClientSelect = (client) => {
+    setSelectedClient(client);
+    setClientMenuAnchorEl(null);
+  };
+
+  const handleTypeSelect = (type) => {
+    setSelectedType(type);
+    setTypeMenuAnchorEl(null);
   };
 
   const getFilteredSuggestions = () => {
@@ -952,24 +891,6 @@ const Dashboard = () => {
     const matchesType = !localFilters.type || msg.type === localFilters.type;
     return matchesSearch && matchesClient && matchesType;
   });
-
-  const handleClientChipClick = (event) => {
-    setClientMenuAnchorEl(event.currentTarget);
-  };
-
-  const handleTypeChipClick = (event) => {
-    setTypeMenuAnchorEl(event.currentTarget);
-  };
-
-  const handleClientSelect = (client) => {
-    setSelectedClient(client);
-    setClientMenuAnchorEl(null);
-  };
-
-  const handleTypeSelect = (type) => {
-    setSelectedType(type);
-    setTypeMenuAnchorEl(null);
-  };
 
   const handleAddAnnouncement = () => {
     setEditingAnnouncement(null);
@@ -1059,8 +980,9 @@ const Dashboard = () => {
     }
   };
 
-  const handleEditAnalyst = async (analyst) => {
+  const handleEditAnalyst = (analyst) => {
     if (!isAdmin) return;
+    console.log('Editando analista:', analyst);
     setEditingAnalyst(analyst);
     setUserProfile({
       name: analyst.name || '',
@@ -1069,7 +991,8 @@ const Dashboard = () => {
       interno: analyst.interno || '',
       startTime: analyst.startTime || '',
       endTime: analyst.endTime || '',
-      task: analyst.task || ''
+      task: analyst.task || '',
+      isAdmin: analyst.isAdmin || false
     });
     setOpenProfileDialog(true);
   };
@@ -1080,7 +1003,13 @@ const Dashboard = () => {
     try {
       const targetRef = doc(db, 'analysts', editingAnalyst ? editingAnalyst.id : user.uid);
       const profileData = {
-        ...userProfile,
+        name: userProfile.name,
+        position: userProfile.position,
+        clients: userProfile.clients || [],
+        interno: userProfile.interno,
+        startTime: userProfile.startTime,
+        endTime: userProfile.endTime,
+        task: userProfile.task,
         email: editingAnalyst ? editingAnalyst.email : user.email,
         avatar: editingAnalyst ? editingAnalyst.avatar : (user.photoURL || '/avatars/default.jpg'),
         status: editingAnalyst ? editingAnalyst.status : 'active',
@@ -1089,9 +1018,9 @@ const Dashboard = () => {
         lastModified: new Date().toISOString()
       };
 
-      await setDoc(targetRef, profileData, { merge: true });
-      
-      // Actualizar caché local
+      await setDoc(targetRef, profileData);
+      console.log('Perfil guardado:', profileData);
+
       if (!editingAnalyst) {
         localStorage.setItem(`userProfile_${user.uid}`, JSON.stringify(userProfile));
       }
@@ -1099,34 +1028,42 @@ const Dashboard = () => {
       setOpenProfileDialog(false);
       setIsFirstLogin(false);
       setEditingAnalyst(null);
-      
-      // Cerrar el menú desplegable de clientes
-      setClientMenuAnchorEl(null);
     } catch (error) {
       console.error('Error saving profile:', error);
     }
   };
 
-  const handleSetDeleteTime = async (hours) => {
-    try {
-      const deleteTimeRef = doc(db, 'config', 'messageDeleteTime');
-      const newTimestamp = new Date();
-      newTimestamp.setHours(newTimestamp.getHours() + hours);
-      
-      await setDoc(deleteTimeRef, {
-        timestamp: newTimestamp.toISOString(),
-        setBy: user.email,
-        setAt: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error al configurar tiempo de borrado:', error);
-    }
-  };
+  // Borrado automático a medianoche
+  useEffect(() => {
+    if (!user) return;
 
-  const handleDeleteAllMessages = () => {
-    if (!isAdmin) return;
-    setOpenDeleteDialog(true);
-  };
+    const deleteAllMessages = async () => {
+      try {
+        const messagesRef = collection(db, 'messages');
+        const snapshot = await getDocs(messagesRef);
+        
+        const batch = writeBatch(db);
+        snapshot.docs.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+        
+        await batch.commit();
+        console.log('Mensajes eliminados automáticamente a medianoche');
+      } catch (error) {
+        console.error('Error al borrar mensajes:', error);
+      }
+    };
+
+    // Calcular tiempo hasta la próxima medianoche
+    const now = new Date();
+    const nextMidnight = new Date(now);
+    nextMidnight.setHours(24, 0, 0, 0);
+    const msUntilMidnight = nextMidnight - now;
+
+    // Programar el borrado para la medianoche
+    const timeoutId = setTimeout(deleteAllMessages, msUntilMidnight);
+    return () => clearTimeout(timeoutId);
+  }, [user]);
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
@@ -1167,51 +1104,30 @@ const Dashboard = () => {
           }}>
             <Box sx={{ 
               display: 'flex', 
-              justifyContent: 'space-between', 
+              justifyContent: 'center', 
               alignItems: 'center',
               mb: 2 
             }}>
               <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
                 Chat del Equipo
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                {deleteTime && (
-                  <Tooltip title={isAdmin ? "Configurar tiempo de borrado" : "Tiempo restante hasta el borrado de mensajes"}>
-                    <Chip
-                      size="small"
-                      label={formatDistanceToNow(new Date(deleteTime), { 
-                        locale: es, 
-                        addSuffix: true 
-                      })}
-                      onClick={() => isAdmin && setShowDeleteTimeConfig(true)}
-                      sx={{
-                        bgcolor: 'rgba(255,255,255,0.1)',
-                        color: 'white',
-                        cursor: isAdmin ? 'pointer' : 'default',
-                        '&:hover': isAdmin ? {
-                          bgcolor: 'rgba(255,255,255,0.2)'
-                        } : {}
-                      }}
-                    />
-                  </Tooltip>
-                )}
-                {isAdmin && (
-                  <Tooltip title="Borrar todos los mensajes">
-                    <IconButton
-                      size="small"
-                      onClick={handleDeleteAllMessages}
-                      sx={{ 
-                        color: 'white',
-                        '&:hover': {
-                          bgcolor: 'rgba(255,255,255,0.1)'
-                        }
-                      }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </Box>
+              {isAdmin && (
+                <Tooltip title="Borrar todos los mensajes">
+                  <IconButton
+                    size="small"
+                    onClick={() => setOpenDeleteDialog(true)}
+                    sx={{ 
+                      color: 'white',
+                      ml: 1,
+                      '&:hover': {
+                        bgcolor: 'rgba(255,255,255,0.1)'
+                      }
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Box>
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
               <TextField
@@ -1332,7 +1248,23 @@ const Dashboard = () => {
               >
                 <MenuItem value="">Todos los tipos</MenuItem>
                 {messageTypes.map((type) => (
-                  <MenuItem key={type} value={type}>{type}</MenuItem>
+                  <MenuItem
+                    key={type}
+                    onClick={() => handleTypeSelect(type)}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 0.5,
+                      '&:last-child': { mb: 0 },
+                      '&:hover': {
+                        bgcolor: 'rgba(66, 133, 244, 0.08)'
+                      }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AssignmentIcon sx={{ fontSize: 16, color: '#4285f4' }} />
+                      {type}
+                    </Box>
+                  </MenuItem>
                 ))}
               </TextField>
             </Box>
@@ -1381,186 +1313,255 @@ const Dashboard = () => {
             borderColor: 'grey.200',
             bgcolor: 'white'
           }}>
-            <TextField
-              fullWidth
-              multiline
-              rows={2}
-              placeholder="Escribe un mensaje... Usa @ para mencionar un cliente y # para el tipo de mensaje"
-              value={message}
-              onChange={handleMessageChange}
-              onKeyPress={handleKeyPress}
-              ref={textFieldRef}
-              sx={{ mb: 1 }}
-            />
-            <Popper
-              open={Boolean(mentionAnchorEl)}
-              anchorEl={mentionAnchorEl}
-              placement="top-start"
-              style={{ zIndex: 1500 }}
-            >
-              <ClickAwayListener onClickAway={() => setMentionAnchorEl(null)}>
-                <MenuPaper sx={{ 
-                  p: 1,
-                  maxHeight: 200,
-                  overflow: 'auto',
-                  width: 250,
-                  boxShadow: '0px 2px 8px rgba(0,0,0,0.1)'
-                }}>
-                  {getFilteredSuggestions().map((suggestion) => (
-                    <MenuItem
-                      key={suggestion}
-                      onClick={() => handleMentionSelect(suggestion)}
-                      sx={{
-                        borderRadius: 1,
-                        mb: 0.5,
-                        '&:last-child': { mb: 0 },
-                      }}
-                    >
-                      {mentionType === 'client' ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <BusinessIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                          {suggestion}
-                        </Box>
-                      ) : (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <AssignmentIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                          {suggestion}
-                        </Box>
-                      )}
-                    </MenuItem>
-                  ))}
-                </MenuPaper>
-              </ClickAwayListener>
-            </Popper>
-            <Popper
-              open={Boolean(clientMenuAnchorEl)}
-              anchorEl={clientMenuAnchorEl}
-              placement="top-start"
-              style={{ zIndex: 1500 }}
-            >
-              <ClickAwayListener onClickAway={() => setClientMenuAnchorEl(null)}>
-                <MenuPaper sx={{ 
-                  p: 1,
-                  maxHeight: 200,
-                  overflow: 'auto',
-                  width: 250,
-                  boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
-                  bgcolor: 'white'
-                }}>
-                  {clients.map((client) => (
-                    <MenuItem
-                      key={client}
-                      onClick={() => handleClientSelect(client)}
-                      sx={{
-                        borderRadius: 1,
-                        mb: 0.5,
-                        '&:last-child': { mb: 0 },
-                        '&:hover': {
-                          bgcolor: 'rgba(66, 133, 244, 0.08)'
-                        }
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <BusinessIcon sx={{ fontSize: 16, color: '#4285f4' }} />
-                        {client}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </MenuPaper>
-              </ClickAwayListener>
-            </Popper>
-            <Popper
-              open={Boolean(typeMenuAnchorEl)}
-              anchorEl={typeMenuAnchorEl}
-              placement="top-start"
-              style={{ zIndex: 1500 }}
-            >
-              <ClickAwayListener onClickAway={() => setTypeMenuAnchorEl(null)}>
-                <MenuPaper sx={{ 
-                  p: 1,
-                  maxHeight: 200,
-                  overflow: 'auto',
-                  width: 250,
-                  boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
-                  bgcolor: 'white'
-                }}>
-                  {messageTypes.map((type) => (
-                    <MenuItem
-                      key={type}
-                      onClick={() => handleTypeSelect(type)}
-                      sx={{
-                        borderRadius: 1,
-                        mb: 0.5,
-                        '&:last-child': { mb: 0 },
-                        '&:hover': {
-                          bgcolor: 'rgba(66, 133, 244, 0.08)'
-                        }
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <AssignmentIcon sx={{ fontSize: 16, color: '#4285f4' }} />
-                        {type}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </MenuPaper>
-              </ClickAwayListener>
-            </Popper>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Chip
-                  icon={<BusinessIcon sx={{ fontSize: 16, color: localFilters.client ? '#4285f4' : 'text.secondary' }} />}
-                  label={localFilters.client || "Sin cliente"}
-                  size="small"
-                  onClick={handleClientChipClick}
-                  onDelete={localFilters.client ? () => setLocalFilters(prev => ({ ...prev, client: '' })) : undefined}
-                  sx={{ 
-                    height: 24,
-                    cursor: 'pointer',
-                    bgcolor: localFilters.client ? 'rgba(66, 133, 244, 0.08)' : 'transparent',
-                    color: localFilters.client ? '#4285f4' : 'text.primary',
-                    borderColor: localFilters.client ? '#4285f4' : 'grey.300',
-                    '&:hover': {
-                      bgcolor: localFilters.client ? 'rgba(66, 133, 244, 0.12)' : 'rgba(0, 0, 0, 0.04)'
-                    }
-                  }}
-                />
-                <Chip
-                  icon={<AssignmentIcon sx={{ fontSize: 16, color: localFilters.type ? '#4285f4' : 'text.secondary' }} />}
-                  label={localFilters.type || "Sin tipo"}
-                  size="small"
-                  onClick={handleTypeChipClick}
-                  onDelete={localFilters.type ? () => setLocalFilters(prev => ({ ...prev, type: '' })) : undefined}
-                  sx={{ 
-                    height: 24,
-                    cursor: 'pointer',
-                    bgcolor: localFilters.type ? 'rgba(66, 133, 244, 0.08)' : 'transparent',
-                    color: localFilters.type ? '#4285f4' : 'text.primary',
-                    borderColor: localFilters.type ? '#4285f4' : 'grey.300',
-                    '&:hover': {
-                      bgcolor: localFilters.type ? 'rgba(66, 133, 244, 0.12)' : 'rgba(0, 0, 0, 0.04)'
-                    }
-                  }}
-                />
-              </Box>
-              <Button
-                variant="contained"
-                endIcon={<Send />}
-                size="small"
-                disabled={!message.trim() && !localFilters.client && !localFilters.type}
-                onClick={handleSendMessage}
-                sx={{
-                  bgcolor: '#4285f4',
-                  '&:hover': {
-                    bgcolor: '#3367d6'
+            <Box sx={{ position: 'relative' }}>
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                placeholder="Escribe un mensaje... Usa @ para mencionar un cliente y # para el tipo de mensaje"
+                value={message}
+                onChange={handleMessageChange}
+                onKeyPress={handleKeyPress}
+                ref={textFieldRef}
+                sx={{ mb: 1 }}
+              />
+              <Popper
+                open={Boolean(mentionAnchorEl)}
+                anchorEl={mentionAnchorEl}
+                placement="top-start"
+                style={{ zIndex: 1500 }}
+                modifiers={[
+                  {
+                    name: 'offset',
+                    options: {
+                      offset: [0, 8],
+                    },
                   },
-                  '&.Mui-disabled': {
-                    bgcolor: 'rgba(0, 0, 0, 0.12)'
-                  }
-                }}
+                  {
+                    name: 'preventOverflow',
+                    options: {
+                      boundary: window,
+                    },
+                  },
+                ]}
               >
-                Enviar
-              </Button>
+                <ClickAwayListener onClickAway={() => setMentionAnchorEl(null)}>
+                  <MenuPaper sx={{ 
+                    p: 1,
+                    maxHeight: 150,
+                    overflow: 'auto',
+                    minWidth: 200,
+                    boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
+                    bgcolor: 'white'
+                  }}>
+                    {getFilteredSuggestions().map((suggestion) => (
+                      <MenuItem
+                        key={suggestion}
+                        onClick={() => handleMentionSelect(suggestion)}
+                        sx={{
+                          borderRadius: 1,
+                          mb: 0.5,
+                          '&:last-child': { mb: 0 },
+                          '&:hover': {
+                            bgcolor: 'rgba(66, 133, 244, 0.08)'
+                          }
+                        }}
+                      >
+                        {mentionType === 'client' ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <BusinessIcon sx={{ fontSize: 16, color: '#4285f4' }} />
+                            {suggestion}
+                          </Box>
+                        ) : (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <AssignmentIcon sx={{ fontSize: 16, color: '#4285f4' }} />
+                            {suggestion}
+                          </Box>
+                        )}
+                      </MenuItem>
+                    ))}
+                  </MenuPaper>
+                </ClickAwayListener>
+              </Popper>
+            </Box>
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              position: 'relative',
+              minHeight: 32
+            }}>
+              <Box sx={{ display: 'flex', gap: 1, flexGrow: 1, overflow: 'hidden' }}>
+                <Box sx={{ position: 'relative', width: '50%' }}>
+                  <Chip
+                    icon={<BusinessIcon sx={{ fontSize: 16, color: selectedClient ? '#4285f4' : 'text.secondary' }} />}
+                    label={selectedClient || "Sin cliente"}
+                    size="small"
+                    onClick={(e) => setClientMenuAnchorEl(e.currentTarget)}
+                    onDelete={selectedClient ? () => setSelectedClient('') : undefined}
+                    sx={{ 
+                      height: 24,
+                      width: '100%',
+                      cursor: 'pointer',
+                      bgcolor: selectedClient ? 'rgba(66, 133, 244, 0.08)' : 'transparent',
+                      color: selectedClient ? '#4285f4' : 'text.primary',
+                      borderColor: selectedClient ? '#4285f4' : 'grey.300',
+                      '&:hover': {
+                        bgcolor: selectedClient ? 'rgba(66, 133, 244, 0.12)' : 'rgba(0, 0, 0, 0.04)'
+                      }
+                    }}
+                  />
+                  <Popper
+                    open={Boolean(clientMenuAnchorEl)}
+                    anchorEl={clientMenuAnchorEl}
+                    placement="top-start"
+                    style={{ zIndex: 1500 }}
+                    modifiers={[
+                      {
+                        name: 'offset',
+                        options: {
+                          offset: [0, 8],
+                        },
+                      },
+                      {
+                        name: 'preventOverflow',
+                        options: {
+                          boundary: window,
+                        },
+                      },
+                    ]}
+                  >
+                    <ClickAwayListener onClickAway={() => setClientMenuAnchorEl(null)}>
+                      <MenuPaper sx={{ 
+                        p: 1,
+                        maxHeight: 150,
+                        overflow: 'auto',
+                        minWidth: 200,
+                        boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
+                        bgcolor: 'white'
+                      }}>
+                        {clients.map((client) => (
+                          <MenuItem
+                            key={client}
+                            onClick={() => {
+                              // Cerrar el desplegable después de seleccionar
+                              const select = document.activeElement;
+                              if (select) {
+                                select.blur();
+                              }
+                              handleClientSelect(client);
+                            }}
+                            sx={{
+                              '&.Mui-selected': {
+                                bgcolor: 'rgba(66, 133, 244, 0.08)',
+                                '&:hover': {
+                                  bgcolor: 'rgba(66, 133, 244, 0.12)'
+                                }
+                              }
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <BusinessIcon sx={{ fontSize: 16, color: '#4285f4' }} />
+                              {client}
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </MenuPaper>
+                    </ClickAwayListener>
+                  </Popper>
+                </Box>
+                <Box sx={{ position: 'relative', width: '50%' }}>
+                  <Chip
+                    icon={<AssignmentIcon sx={{ fontSize: 16, color: selectedType ? '#4285f4' : 'text.secondary' }} />}
+                    label={selectedType || "Sin tipo"}
+                    size="small"
+                    onClick={(e) => setTypeMenuAnchorEl(e.currentTarget)}
+                    onDelete={selectedType ? () => setSelectedType('') : undefined}
+                    sx={{ 
+                      height: 24,
+                      width: '100%',
+                      cursor: 'pointer',
+                      bgcolor: selectedType ? 'rgba(66, 133, 244, 0.08)' : 'transparent',
+                      color: selectedType ? '#4285f4' : 'text.primary',
+                      borderColor: selectedType ? '#4285f4' : 'grey.300',
+                      '&:hover': {
+                        bgcolor: selectedType ? 'rgba(66, 133, 244, 0.12)' : 'rgba(0, 0, 0, 0.04)'
+                      }
+                    }}
+                  />
+                  <Popper
+                    open={Boolean(typeMenuAnchorEl)}
+                    anchorEl={typeMenuAnchorEl}
+                    placement="top-start"
+                    style={{ zIndex: 1500 }}
+                    modifiers={[
+                      {
+                        name: 'offset',
+                        options: {
+                          offset: [0, 8],
+                        },
+                      },
+                      {
+                        name: 'preventOverflow',
+                        options: {
+                          boundary: window,
+                        },
+                      },
+                    ]}
+                  >
+                    <ClickAwayListener onClickAway={() => setTypeMenuAnchorEl(null)}>
+                      <MenuPaper sx={{ 
+                        p: 1,
+                        maxHeight: 150,
+                        overflow: 'auto',
+                        minWidth: 200,
+                        boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
+                        bgcolor: 'white'
+                      }}>
+                        {messageTypes.map((type) => (
+                          <MenuItem
+                            key={type}
+                            onClick={() => handleTypeSelect(type)}
+                            sx={{
+                              borderRadius: 1,
+                              mb: 0.5,
+                              '&:last-child': { mb: 0 },
+                              '&:hover': {
+                                bgcolor: 'rgba(66, 133, 244, 0.08)'
+                              }
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <AssignmentIcon sx={{ fontSize: 16, color: '#4285f4' }} />
+                              {type}
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </MenuPaper>
+                    </ClickAwayListener>
+                  </Popper>
+                </Box>
+              </Box>
+              <Box sx={{ ml: 2, flexShrink: 0 }}>
+                <Button
+                  variant="contained"
+                  endIcon={<Send />}
+                  size="small"
+                  disabled={!message.trim() && !selectedClient && !selectedType}
+                  onClick={handleSendMessage}
+                  sx={{
+                    bgcolor: '#4285f4',
+                    '&:hover': {
+                      bgcolor: '#3367d6'
+                    },
+                    '&.Mui-disabled': {
+                      bgcolor: 'rgba(0, 0, 0, 0.12)'
+                    }
+                  }}
+                >
+                  Enviar
+                </Button>
+              </Box>
             </Box>
           </Box>
         </Box>
@@ -1744,6 +1745,7 @@ const Dashboard = () => {
                     type="active"
                     isAdmin={isAdmin}
                     onDeleteAnalyst={handleDeleteAnalyst}
+                    onEditAnalyst={handleEditAnalyst}
                   />
                 </Grid>
                 <Grid item xs={4}>
@@ -1753,6 +1755,7 @@ const Dashboard = () => {
                     type="absent"
                     isAdmin={isAdmin}
                     onDeleteAnalyst={handleDeleteAnalyst}
+                    onEditAnalyst={handleEditAnalyst}
                   />
                 </Grid>
                 <Grid item xs={4}>
@@ -1762,6 +1765,7 @@ const Dashboard = () => {
                     type="offline"
                     isAdmin={isAdmin}
                     onDeleteAnalyst={handleDeleteAnalyst}
+                    onEditAnalyst={handleEditAnalyst}
                   />
                 </Grid>
               </Grid>
@@ -1836,25 +1840,23 @@ const Dashboard = () => {
           fullWidth
         >
           <DialogTitle>
-            {isFirstLogin ? 'Bienvenido! Complete su información' : 
-             editingAnalyst ? `Editar perfil de ${editingAnalyst.name}` : 
-             'Editar Perfil'}
+            {isFirstLogin ? 'Bienvenido! Complete su información' : 'Editar Perfil'}
           </DialogTitle>
           <DialogContent>
             <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <TextField
                 label="Nombre"
                 fullWidth
-                value={userProfile.name}
-                onChange={(e) => setUserProfile(prev => ({ ...prev, name: e.target.value }))}
+                value={userProfile.name || ''}
+                onChange={(e) => setUserProfile(prev => ({...prev, name: e.target.value}))}
                 autoFocus
               />
               <TextField
                 label="Interno"
                 fullWidth
                 required
-                value={userProfile.interno}
-                onChange={(e) => setUserProfile(prev => ({ ...prev, interno: e.target.value }))}
+                value={userProfile.interno || ''}
+                onChange={(e) => setUserProfile(prev => ({...prev, interno: e.target.value}))}
                 helperText="Número de interno asignado"
               />
               <Box sx={{ display: 'flex', gap: 2 }}>
@@ -1863,13 +1865,17 @@ const Dashboard = () => {
                   fullWidth
                   required
                   type="time"
-                  value={userProfile.startTime}
-                  onChange={(e) => setUserProfile(prev => ({ ...prev, startTime: e.target.value }))}
+                  defaultValue="00:00"
+                  value={userProfile.startTime || ''}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    setUserProfile(prev => ({
+                      ...prev,
+                      startTime: newValue
+                    }));
+                  }}
                   InputLabelProps={{
                     shrink: true,
-                  }}
-                  inputProps={{
-                    step: 300 // 5 minutos
                   }}
                 />
                 <TextField
@@ -1877,36 +1883,46 @@ const Dashboard = () => {
                   fullWidth
                   required
                   type="time"
-                  value={userProfile.endTime}
-                  onChange={(e) => setUserProfile(prev => ({ ...prev, endTime: e.target.value }))}
+                  defaultValue="00:00"
+                  value={userProfile.endTime || ''}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    setUserProfile(prev => ({
+                      ...prev,
+                      endTime: newValue
+                    }));
+                  }}
                   InputLabelProps={{
                     shrink: true,
-                  }}
-                  inputProps={{
-                    step: 300 // 5 minutos
                   }}
                 />
               </Box>
               <TextField
                 label="Puesto"
                 fullWidth
-                value={userProfile.position}
-                onChange={(e) => setUserProfile(prev => ({ ...prev, position: e.target.value }))}
-                disabled={!isAdmin} // Solo el admin puede cambiar el puesto
+                value={userProfile.position || ''}
+                onChange={(e) => setUserProfile(prev => ({...prev, position: e.target.value}))}
+                disabled={!isAdmin}
               />
               <TextField
                 label="Tarea actual"
                 fullWidth
-                value={userProfile.task}
-                onChange={(e) => setUserProfile(prev => ({ ...prev, task: e.target.value }))}
+                value={userProfile.task || ''}
+                onChange={(e) => setUserProfile(prev => ({...prev, task: e.target.value}))}
                 helperText="Describe tu tarea o actividad actual"
               />
               <FormControl fullWidth required>
                 <InputLabel>Clientes asignados</InputLabel>
                 <Select
                   multiple
-                  value={userProfile.clients}
-                  onChange={(e) => setUserProfile(prev => ({ ...prev, clients: e.target.value }))}
+                  value={userProfile.clients || []}
+                  onChange={(e) => {
+                    const newClients = e.target.value;
+                    setUserProfile(prev => ({
+                      ...prev,
+                      clients: newClients
+                    }));
+                  }}
                   input={<OutlinedInput label="Clientes asignados" />}
                   renderValue={(selected) => (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -1916,9 +1932,10 @@ const Dashboard = () => {
                           label={value}
                           onDelete={(e) => {
                             e.stopPropagation();
+                            const newClients = userProfile.clients.filter(c => c !== value);
                             setUserProfile(prev => ({
                               ...prev,
-                              clients: prev.clients.filter(client => client !== value)
+                              clients: newClients
                             }));
                           }}
                           sx={{
@@ -1984,43 +2001,6 @@ const Dashboard = () => {
           </DialogActions>
         </Dialog>
 
-        <Dialog 
-          open={showDeleteTimeConfig} 
-          onClose={() => setShowDeleteTimeConfig(false)}
-          maxWidth="xs"
-          fullWidth
-        >
-          <DialogTitle>
-            Configurar tiempo de borrado
-          </DialogTitle>
-          <DialogContent>
-            <Stack spacing={2} sx={{ mt: 2 }}>
-              {[1, 2, 4, 8, 12, 24].map((hours) => (
-                <Button
-                  key={hours}
-                  variant="outlined"
-                  onClick={() => {
-                    handleSetDeleteTime(hours);
-                    setShowDeleteTimeConfig(false);
-                  }}
-                  sx={{
-                    justifyContent: 'flex-start',
-                    px: 2,
-                    py: 1
-                  }}
-                >
-                  {hours} {hours === 1 ? 'hora' : 'horas'}
-                </Button>
-              ))}
-            </Stack>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setShowDeleteTimeConfig(false)}>
-              Cancelar
-            </Button>
-          </DialogActions>
-        </Dialog>
-
         <Dialog
           open={openDeleteDialog}
           onClose={() => setOpenDeleteDialog(false)}
@@ -2028,27 +2008,13 @@ const Dashboard = () => {
           fullWidth
         >
           <DialogTitle>
-            Configurar borrado de mensajes
+            Confirmar borrado de mensajes
           </DialogTitle>
           <DialogContent>
             <Box sx={{ pt: 2 }}>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                Seleccione el tiempo después del cual se borrarán los mensajes:
+              <Typography variant="body2">
+                ¿Está seguro que desea borrar todos los mensajes del chat?
               </Typography>
-              <FormControl fullWidth>
-                <InputLabel>Tiempo de borrado</InputLabel>
-                <Select
-                  value={deleteHours}
-                  onChange={(e) => setDeleteHours(e.target.value)}
-                  label="Tiempo de borrado"
-                >
-                  {[1, 2, 4, 8, 12, 24].map((hours) => (
-                    <MenuItem key={hours} value={hours}>
-                      {hours} {hours === 1 ? 'hora' : 'horas'}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
             </Box>
           </DialogContent>
           <DialogActions>
@@ -2069,18 +2035,6 @@ const Dashboard = () => {
                   });
                   
                   await batch.commit();
-                  
-                  // Configurar el nuevo tiempo de borrado
-                  const deleteTimeRef = doc(db, 'config', 'messageDeleteTime');
-                  const newTimestamp = new Date();
-                  newTimestamp.setHours(newTimestamp.getHours() + deleteHours);
-                  
-                  await setDoc(deleteTimeRef, {
-                    timestamp: newTimestamp.toISOString(),
-                    setBy: user.email,
-                    setAt: new Date().toISOString()
-                  });
-                  
                   setOpenDeleteDialog(false);
                 } catch (error) {
                   console.error('Error al eliminar mensajes:', error);
