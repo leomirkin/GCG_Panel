@@ -480,10 +480,7 @@ const Dashboard = () => {
   const [cursorPosition, setCursorPosition] = useState(0);
   const [chatMessages, setChatMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const textFieldRef = useRef(null);
-  const chatEndRef = useRef(null);
   const [analysts, setAnalysts] = useState([]);
-  const isAdmin = user?.email === 'lmirkin@gcgcontrol.com';
   const [localFilters, setLocalFilters] = useState({
     searchQuery: '',
     client: '',
@@ -513,11 +510,15 @@ const Dashboard = () => {
   const [deleteTime, setDeleteTime] = useState(null);
   const [showDeleteTimeConfig, setShowDeleteTimeConfig] = useState(false);
   const [editingAnalyst, setEditingAnalyst] = useState(null);
-
-  // Agregar estados para las columnas de analistas
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [deleteHours, setDeleteHours] = useState(1);
   const [activeAnalysts, setActiveAnalysts] = useState([]);
   const [absentAnalysts, setAbsentAnalysts] = useState([]);
   const [offlineAnalysts, setOfflineAnalysts] = useState([]);
+
+  const textFieldRef = useRef(null);
+  const chatEndRef = useRef(null);
+  const isAdmin = user?.email === 'lmirkin@gcgcontrol.com';
 
   useEffect(() => {
     // Clasificar analistas por estado
@@ -1122,12 +1123,8 @@ const Dashboard = () => {
     }
   };
 
-  const handleDeleteAllMessages = async () => {
+  const handleDeleteAllMessages = () => {
     if (!isAdmin) return;
-    
-    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-    const [deleteHours, setDeleteHours] = useState(1);
-    
     setOpenDeleteDialog(true);
   };
 
