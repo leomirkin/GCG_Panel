@@ -49,10 +49,12 @@ import {
 } from '@mui/icons-material';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../../config/firebase';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy, serverTimestamp, setDoc, getDocs, where, getDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy, serverTimestamp, setDoc, getDocs, where, getDoc, writeBatch } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import './Dashboard.css';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const AnalystColumn = ({ title, analysts, type, isAdmin, onDeleteAnalyst }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -483,6 +485,8 @@ const Dashboard = () => {
     task: ''
   });
   const [isFirstLogin, setIsFirstLogin] = useState(false);
+  const [deleteTime, setDeleteTime] = useState(null);
+  const [showDeleteTimeConfig, setShowDeleteTimeConfig] = useState(false);
 
   // Agregar estados para las columnas de analistas
   const [activeAnalysts, setActiveAnalysts] = useState([]);
@@ -501,6 +505,18 @@ const Dashboard = () => {
   }, [analysts]);
 
   useEffect(() => {
+    const deleteTimeRef = doc(db, 'config', 'messageDeleteTime');
+    
+    const unsubscribe = onSnapshot(deleteTimeRef, (doc) => {
+      if (doc.exists()) {
+        setDeleteTime(doc.data().timestamp);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     const isFromToday = (timestamp) => {
       const date = new Date(timestamp);
       const today = new Date();
@@ -511,24 +527,29 @@ const Dashboard = () => {
 
     const cleanOldMessages = async () => {
       try {
+        if (!deleteTime) return;
+        
+        const deleteTimeDate = new Date(deleteTime);
         const messagesRef = collection(db, 'messages');
         const snapshot = await getDocs(messagesRef);
         
-        if (snapshot.docs.length > 0) {
-          const updates = {};
-          snapshot.docs.forEach((doc) => {
-            const message = doc.data();
-            if (!isFromToday(message.timestamp)) {
-              updates[doc.id] = null;
-            }
-          });
-          
-          if (Object.keys(updates).length > 0) {
-            await deleteDoc(doc(db, 'messages', Object.keys(updates)[0]));
+        const batch = writeBatch(db);
+        let hasChanges = false;
+        
+        snapshot.docs.forEach((doc) => {
+          const message = doc.data();
+          const messageDate = message.timestamp?.toDate();
+          if (messageDate && messageDate < deleteTimeDate) {
+            batch.delete(doc.ref);
+            hasChanges = true;
           }
+        });
+        
+        if (hasChanges) {
+          await batch.commit();
         }
       } catch (error) {
-        console.error('Error al limpiar mensajes antiguos:', error);
+        console.error('Error al limpiar mensajes:', error);
       }
     };
 
@@ -545,7 +566,7 @@ const Dashboard = () => {
       clearTimeout(cleanupTimeout);
       clearInterval(dailyCleanup);
     };
-  }, []);
+  }, [deleteTime]);
 
   useEffect(() => {
     const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
@@ -1009,6 +1030,22 @@ const Dashboard = () => {
     }
   };
 
+  const handleSetDeleteTime = async (hours) => {
+    try {
+      const deleteTimeRef = doc(db, 'config', 'messageDeleteTime');
+      const newTimestamp = new Date();
+      newTimestamp.setHours(newTimestamp.getHours() + hours);
+      
+      await setDoc(deleteTimeRef, {
+        timestamp: newTimestamp.toISOString(),
+        setBy: user.email,
+        setAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error al configurar tiempo de borrado:', error);
+    }
+  };
+
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
       <Box sx={{ 
@@ -1048,6 +1085,27 @@ const Dashboard = () => {
           }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'white' }}>
               Chat del Equipo
+              {deleteTime && (
+                <Tooltip title={isAdmin ? "Configurar tiempo de borrado" : "Tiempo restante hasta el borrado de mensajes"}>
+                  <Chip
+                    size="small"
+                    label={formatDistanceToNow(new Date(deleteTime), { 
+                      locale: es, 
+                      addSuffix: true 
+                    })}
+                    onClick={() => isAdmin && setShowDeleteTimeConfig(true)}
+                    sx={{
+                      ml: 1,
+                      bgcolor: 'rgba(255,255,255,0.1)',
+                      color: 'white',
+                      cursor: isAdmin ? 'pointer' : 'default',
+                      '&:hover': isAdmin ? {
+                        bgcolor: 'rgba(255,255,255,0.2)'
+                      } : {}
+                    }}
+                  />
+                </Tooltip>
+              )}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
               <TextField
@@ -1814,6 +1872,43 @@ const Dashboard = () => {
                         userProfile.clients.length === 0}
             >
               Guardar
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog 
+          open={showDeleteTimeConfig} 
+          onClose={() => setShowDeleteTimeConfig(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>
+            Configurar tiempo de borrado
+          </DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ mt: 2 }}>
+              {[1, 2, 4, 8, 12, 24].map((hours) => (
+                <Button
+                  key={hours}
+                  variant="outlined"
+                  onClick={() => {
+                    handleSetDeleteTime(hours);
+                    setShowDeleteTimeConfig(false);
+                  }}
+                  sx={{
+                    justifyContent: 'flex-start',
+                    px: 2,
+                    py: 1
+                  }}
+                >
+                  {hours} {hours === 1 ? 'hora' : 'horas'}
+                </Button>
+              ))}
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowDeleteTimeConfig(false)}>
+              Cancelar
             </Button>
           </DialogActions>
         </Dialog>
